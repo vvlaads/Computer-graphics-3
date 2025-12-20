@@ -167,6 +167,11 @@ def get_radius(height, width):
     return radius_value
 
 
+def is_inside_circle(x, y, radius):
+    """Проверяет, находится ли точка (x, y) внутри круга радиуса radius"""
+    return x ** 2 + y ** 2 <= radius ** 2
+
+
 def calculate():
     """Основной метод расчета"""
     global root, img, lm
@@ -210,12 +215,23 @@ def calculate():
         y = y_centers[i]
         for j in range(w_res):
             x = x_centers[j]
-            light_list[i][j] = get_illumination(power, x, y, source_x, source_y, source_z)
+            # Проверяем, находится ли точка внутри круга
+            if is_inside_circle(x, y, radius):
+                light_list[i][j] = get_illumination(power, x, y, source_x, source_y, source_z)
+            else:
+                # За пределами круга - освещенность 0
+                light_list[i][j] = 0.0
 
-    # Нормировка освещенности
-    max_light = -1
+    # Нормировка освещенности (только ненулевые значения)
+    max_light = 0
     for i in range(h_res):
-        max_light = max(max(light_list[i]), max_light)
+        for j in range(w_res):
+            if light_list[i][j] > max_light:
+                max_light = light_list[i][j]
+
+    # Если все значения 0 (маловероятно, но на всякий случай)
+    if max_light == 0:
+        max_light = 1
 
     for i in range(h_res):
         for j in range(w_res):
@@ -265,7 +281,7 @@ def calculate():
     print("--- --- --- --- ---")
 
     # Построение графиков
-    graph(w, h, w_res, h_res, source_x, source_y, source_z, power)
+    graph(w, h, w_res, h_res, source_x, source_y, source_z, power, radius)
 
 
 def save():
@@ -284,37 +300,51 @@ def save():
         print(f"Изображение сохранено как {file_path}")
 
 
-def graph(w, h, w_res, h_res, source_x, source_y, source_z, power):
-    """Построение графиков сечения"""
+def graph(w, h, w_res, h_res, source_x, source_y, source_z, power, radius):
+    """Построение графиков сечения с учетом круга"""
     x_values, y_values = grid_centers(w, h, w_res, h_res)
     lights_x, lights_y = [], []
 
     # График по оси X
     for x in x_values:
-        illumination = get_illumination(power, x, 0, source_x, source_y, source_z)
-        lights_x.append(illumination)
+        if abs(x) <= radius:  # Проверяем, находится ли точка внутри круга
+            illumination = get_illumination(power, x, 0, source_x, source_y, source_z)
+            lights_x.append(illumination)
+        else:
+            lights_x.append(0.0)
 
     # График по оси Y
     for y in y_values:
-        illumination = get_illumination(power, 0, y, source_x, source_y, source_z)
-        lights_y.append(illumination)
+        if abs(y) <= radius:  # Проверяем, находится ли точка внутри круга
+            illumination = get_illumination(power, 0, y, source_x, source_y, source_z)
+            lights_y.append(illumination)
+        else:
+            lights_y.append(0.0)
 
     # Создаем фигуру с двумя подграфиками
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))  # 1 ряд, 2 колонки
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
     # Сечение вдоль X
     ax1.plot(x_values, lights_x, color='blue')
+    # Добавляем вертикальные линии на границах круга
+    ax1.axvline(x=-radius, color='red', linestyle='--', alpha=0.5, label=f'R = {radius}')
+    ax1.axvline(x=radius, color='red', linestyle='--', alpha=0.5)
     ax1.set_xlabel('X, мм')
     ax1.set_ylabel('Освещенность E, Вт/м^2')
     ax1.set_title('Сечение вдоль X через центр области')
     ax1.grid(True)
+    ax1.legend()
 
     # Сечение вдоль Y
     ax2.plot(y_values, lights_y, color='red')
+    # Добавляем вертикальные линии на границах круга
+    ax2.axvline(x=-radius, color='blue', linestyle='--', alpha=0.5, label=f'R = {radius}')
+    ax2.axvline(x=radius, color='blue', linestyle='--', alpha=0.5)
     ax2.set_xlabel('Y, мм')
     ax2.set_ylabel('Освещенность E, Вт/м^2')
     ax2.set_title('Сечение вдоль Y через центр области')
     ax2.grid(True)
+    ax2.legend()
 
     plt.tight_layout()
     plt.show()
