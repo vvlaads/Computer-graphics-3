@@ -30,7 +30,7 @@ def get_illumination(power, px_mm, py_mm, sx_mm, sy_mm, sz_mm):
     cos_theta = abs(sz_m) / distance
 
     # Освещенность E = I * cos(θ) / r²
-    illumination = power * cos_theta / distance_squared
+    illumination = power * cos_theta**2 / distance_squared
 
     return illumination
 
